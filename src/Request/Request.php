@@ -11,6 +11,7 @@ use AlibabaCloud\Client\Filter\ApiFilter;
 use AlibabaCloud\Client\Filter\ClientFilter;
 use AlibabaCloud\Client\Filter\Filter;
 use AlibabaCloud\Client\Filter\HttpFilter;
+use AlibabaCloud\Client\HyperfCoroutineHandler;
 use AlibabaCloud\Client\Request\Traits\AcsTrait;
 use AlibabaCloud\Client\Request\Traits\ClientTrait;
 use AlibabaCloud\Client\Request\Traits\DeprecatedTrait;
@@ -105,12 +106,12 @@ abstract class Request implements ArrayAccess
      */
     public function __construct(array $options = [])
     {
-        $this->client                     = CredentialsProvider::getDefaultName();
-        $this->uri                        = new Uri();
-        $this->uri                        = $this->uri->withScheme($this->scheme);
-        $this->options['http_errors']     = false;
+        $this->client = CredentialsProvider::getDefaultName();
+        $this->uri = new Uri();
+        $this->uri = $this->uri->withScheme($this->scheme);
+        $this->options['http_errors'] = false;
         $this->options['connect_timeout'] = self::CONNECT_TIMEOUT;
-        $this->options['timeout']         = self::TIMEOUT;
+        $this->options['timeout'] = self::TIMEOUT;
 
         // Turn on debug mode based on environment variable.
         if (strtolower(\AlibabaCloud\Client\env('DEBUG')) === 'sdk') {
@@ -240,7 +241,7 @@ abstract class Request implements ArrayAccess
     public function scheme($scheme)
     {
         $this->scheme = HttpFilter::scheme($scheme);
-        $this->uri    = $this->uri->withScheme($scheme);
+        $this->uri = $this->uri->withScheme($scheme);
 
         return $this;
     }
@@ -372,7 +373,15 @@ abstract class Request implements ArrayAccess
         if (AlibabaCloud::hasMock()) {
             $stack = HandlerStack::create(AlibabaCloud::getMock());
         } else {
-            $stack = HandlerStack::create();
+            if (class_exists(HyperfCoroutineHandler::class)) {
+                if (HyperfCoroutineHandler::inCoroutine()) {
+                    $stack = HandlerStack::create(HyperfCoroutineHandler::getHandler());
+                }
+            }
+
+            if(empty($stack)){
+                $stack = HandlerStack::create();
+            }
         }
 
         if (AlibabaCloud::isRememberHistory()) {
